@@ -80,7 +80,6 @@ class StreamWish {
 
   async getEpisodeSources(episodeID) {
     try {
-      console.log('Getting episode sources for', episodeID);
       const response = await axios.get(`${baseUrl}/${episodeID}`);
       const $ = load(response.data);
       let sources = [];
