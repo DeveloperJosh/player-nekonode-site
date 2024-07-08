@@ -5,18 +5,17 @@ import StreamWish from './lib/streamWish.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import cors from 'cors'; 
 
-// Load environment variables
 dotenv.config();
 
 const app = express();
+app.use(cors());
 app.use(bodyParser.json());
 
-// Derive the __dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Set the views directory and view engine
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, './views'));
 
