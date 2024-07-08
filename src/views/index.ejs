@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HLS Video</title>
+    <title>Video.js Example</title>
     <link href="https://vjs.zencdn.net/7.15.4/video-js.css" rel="stylesheet" />
     <script src="https://vjs.zencdn.net/7.15.4/video.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
         html, body {
             margin: 0;
@@ -22,29 +21,30 @@
             width: 100%;
             height: 100%;
         }
+        .vjs-big-play-button {
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            font-size: 4em !important;
+        }
     </style>
 </head>
 <body>
-    <video id="video" class="video-js vjs-default-skin" controls preload="auto"></video>
+    <video id="video" class="video-js vjs-default-skin" controls preload="auto" data-setup='{}'>
+        <source src="<%= videoUrl %>" type="application/x-mpegURL">
+    </video>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            var video = document.getElementById('video');
-            var source = "<%= videoUrl %>";
+            var player = videojs('video');
+            player.ready(function() {
+                console.log('Player is ready');
+            });
 
-            if (Hls.isSupported()) {
-                var hls = new Hls();
-                hls.loadSource(source);
-                hls.attachMedia(video);
-                hls.on(Hls.Events.MANIFEST_PARSED, function () {
-                    video.play();
-                });
-            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                video.src = source;
-                video.addEventListener('loadedmetadata', function () {
-                    video.play();
-                });
-            }
+            // Autoplay logic
+            player.one('click', function() {
+                player.play();
+            });
         });
     </script>
 </body>
