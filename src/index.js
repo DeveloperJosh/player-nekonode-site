@@ -10,7 +10,12 @@ import cors from 'cors';
 dotenv.config();
 
 const app = express();
-app.use(cors());
+app.use(cors(
+    // allow all origins
+    {
+        origin: '*'
+    }
+));
 app.use(bodyParser.json());
 
 const __filename = fileURLToPath(import.meta.url);
@@ -49,7 +54,7 @@ app.get('/', async (req, res) => {
         let videoUrl = source.url;
         console.log(`Streaming ${videoUrl} from ${server}`);
         // log all
-        console.log(`Anime ID: ${anime_id}, Episode: ${episode}, Quality: ${quality}, Server: ${server}`);
+        console.log(`Anime ID: ${anime_id}, Episode: ${episode}, Quality: ${quality}, Server: ${server}, Url: http://localhost:4000/?anime_id=${anime_id}&episode=${episode}&quality=${quality}&server=${server}`);
         res.render('index', { videoUrl });
     } catch (error) {
         console.error(`Error getting episode sources from ${server}:`, error);
@@ -80,11 +85,12 @@ app.get('/sources', async (req, res) => {
 
     await Promise.all(serverPromises);
 
+    console.log(`Url: http://localhost:4000/sources?anime_id=${anime_id}&episode=${episode}`);
     res.json(results);
 });
 
 // Start the server
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
