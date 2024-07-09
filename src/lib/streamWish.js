@@ -18,6 +18,7 @@ const userAgent = [
 ];
 
 function randomUserAgent() {
+  console.log(userAgent[Math.floor(Math.random() * userAgent.length)]);
   return userAgent[Math.floor(Math.random() * userAgent.length)];
 }
 class StreamWish {

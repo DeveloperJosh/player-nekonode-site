@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import cors from 'cors'; 
+import { setCache, getCache } from './utils/redis.js';
 
 dotenv.config();
 
@@ -43,6 +44,16 @@ app.get('/', async (req, res) => {
 
     try {
         const ep_id = episode === '0' ? `${anime_id}` : `${anime_id}-episode-${episode}`;
+
+        // Check cache
+        const cacheKey = `${server}-${ep_id}-${quality}`;
+        const cachedVideoUrl = await getCache(cacheKey);
+
+        if (cachedVideoUrl) {
+            console.log(`Serving ${cachedVideoUrl} from cache`);
+            return res.render('index', { videoUrl: cachedVideoUrl });
+        }
+
         const sources = await servers[server].getEpisodeSources(ep_id);
         const source = sources.find(src => src.quality === quality);
 
@@ -55,6 +66,8 @@ app.get('/', async (req, res) => {
         console.log(`Streaming ${videoUrl} from ${server}`);
         // log all
         console.log(`Anime ID: ${anime_id}, Episode: ${episode}, Quality: ${quality}, Server: ${server}, Url: http://localhost:4000/?anime_id=${anime_id}&episode=${episode}&quality=${quality}&server=${server}`);
+        // Cache the video URL
+        await setCache(cacheKey, videoUrl);
         res.render('index', { videoUrl });
     } catch (error) {
         console.error(`Error getting episode sources from ${server}:`, error);
