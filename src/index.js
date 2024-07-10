@@ -5,18 +5,17 @@ import StreamWish from './lib/streamWish.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
-import cors from 'cors'; 
+import cors from 'cors';
 import { setCache, getCache } from './utils/redis.js';
+import rateLimit from 'express-rate-limit';
+import morgan from 'morgan';
 
 dotenv.config();
 
 const app = express();
-app.use(cors(
-    // allow all origins
-    {
-        origin: '*'
-    }
-));
+app.use(cors({
+    origin: '*'
+}));
 app.use(bodyParser.json());
 
 const __filename = fileURLToPath(import.meta.url);
@@ -30,6 +29,16 @@ const servers = {
     streamwish: new StreamWish(),
     // Add other servers here
 };
+
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100, 
+    message: 'Too many requests from this IP, please try again after 15 minutes'
+});
+
+app.use(limiter);
+
+app.use(morgan('combined'));
 
 app.get('/', async (req, res) => {
     const { anime_id, episode, quality, server } = req.query;
@@ -63,9 +72,9 @@ app.get('/', async (req, res) => {
         }
 
         let videoUrl = source.url;
-        console.log(`Streaming ${videoUrl} from ${server}`);
+       // console.log(`Streaming ${videoUrl} from ${server}`);
         // log all
-        console.log(`Anime ID: ${anime_id}, Episode: ${episode}, Quality: ${quality}, Server: ${server}, Url: http://localhost:4000/?anime_id=${anime_id}&episode=${episode}&quality=${quality}&server=${server}`);
+      //  console.log(`Anime ID: ${anime_id}, Episode: ${episode}, Quality: ${quality}, Server: ${server}, Url: http://localhost:4000/?anime_id=${anime_id}&episode=${episode}&quality=${quality}&server=${server}`);
         // Cache the video URL
         await setCache(cacheKey, videoUrl);
         res.render('index', { videoUrl });
@@ -84,6 +93,11 @@ app.get('/sources', async (req, res) => {
     }
 
     const ep_id = episode === '0' ? `${anime_id}` : `${anime_id}-episode-${episode}`;
+    const cacheKey = `sources-${ep_id}`;
+    if (await getCache(cacheKey)) {
+        console.log(`Serving sources for ${ep_id} from cache`);
+        return res.json(await getCache(cacheKey));
+    }
     const results = {};
 
     const serverPromises = Object.keys(servers).map(async server => {
@@ -98,7 +112,8 @@ app.get('/sources', async (req, res) => {
 
     await Promise.all(serverPromises);
 
-    console.log(`Url: http://localhost:4000/sources?anime_id=${anime_id}&episode=${episode}`);
+   //console.log(`Url: http://localhost:4000/sources?anime_id=${anime_id}&episode=${episode}`);
+    await setCache(cacheKey, results);
     res.json(results);
 });
 
