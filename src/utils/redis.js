@@ -36,3 +36,12 @@ export const setCache = async (key, value, ttl = 3600) => {
     console.error('Error setting cache:', err);
   }
 };
+
+export const delCache = async (key) => {
+  if (!client) return; // Ensure client is available
+  try {
+    await client.del(key);
+  } catch (err) {
+    console.error('Error deleting cache:', err);
+  }
+};

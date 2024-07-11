@@ -7,10 +7,12 @@
 .yarn/install-state.gz
 
 # testing
-/coverage
+/coverage/
+/src/logs
 
 # next.js
 test.js
+hianime.js
 /.next/
 /out/
 
