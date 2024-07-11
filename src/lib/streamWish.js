@@ -31,6 +31,7 @@ class StreamWish {
     try {
       const options = {
         headers: {
+          "Referer": videoUrl,
           'User-Agent': randomUserAgent(),
         },
       };
