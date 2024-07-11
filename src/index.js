@@ -17,6 +17,10 @@ dotenv.config();
 const app = express();
 app.use(cors({ origin: '*' }));
 app.use(bodyParser.json());
+app.use('/robots.txt', function (req, res, next) {
+    res.type('text/plain')
+    res.send("User-agent: *\nDisallow: /");
+});
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
