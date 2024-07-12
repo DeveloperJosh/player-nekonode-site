@@ -136,9 +136,11 @@ app.get('/sources', async (req, res) => {
     const ep_id = episode === '0' ? `${anime_id}` : `${anime_id}-episode-${episode}`;
     const cacheKey = `sources-${ep_id}`;
 
-    if (await getCache(cacheKey)) {
+    // Check cache
+    const cachedData = await getCache(cacheKey);
+    if (cachedData) {
         logger.info(`Serving sources for ${ep_id} from cache`);
-        return res.json(await getCache(cacheKey));
+        return res.json(cachedData);
     }
 
     const results = {};
@@ -154,8 +156,14 @@ app.get('/sources', async (req, res) => {
 
     await Promise.all(serverPromises);
 
+    const hasErrors = Object.values(results).some(result => result.error);
+
+    // Only cache if there are no errors
+    if (!hasErrors) {
+        await setCache(cacheKey, results);
+    }
+
     logger.info(`Url: sources?anime_id=${anime_id}&episode=${episode}`);
-    await setCache(cacheKey, results);
     res.json(results);
 });
 
