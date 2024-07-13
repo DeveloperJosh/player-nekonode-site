@@ -31,13 +31,13 @@ class GogoCDN {
     async getIframeSrc(episode) {
         try {
             episode = episode.replace(':', '');
-
+    
             const url = `${baseUrl}/${episode}`;
             const { data: html } = await axios.get(url);
-
+    
             const $ = load(html);
-            const iframeSrc = $('#load_anime > div > div > iframe').attr('src');
-
+            const iframeSrc = $('li.anime > a.active').attr('data-video');
+    
             return iframeSrc;
         } catch (error) {
             console.error('Error fetching or parsing HTML:', error);
