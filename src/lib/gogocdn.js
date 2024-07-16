@@ -2,6 +2,7 @@ import axios from 'axios';
 import { load } from 'cheerio';
 import CryptoJS from 'crypto-js';
 import dotenv from 'dotenv';
+import { getCache, setCache } from '../utils/redis.js';
 
 dotenv.config();
 
@@ -32,11 +33,25 @@ class GogoCDN {
         try {
             episode = episode.replace(':', '');
     
+            const cachedIframeSrc = await getCache(episode);
+            if (cachedIframeSrc) {
+                return cachedIframeSrc;
+            }
+    
             const url = `${baseUrl}/${episode}`;
             const { data: html } = await axios.get(url);
     
             const $ = load(html);
-            const iframeSrc = $('li.anime > a.active').attr('data-video');
+            let iframeSrc = $('#load_anime > div > div > iframe').attr('src');
+    
+            if (!iframeSrc) {
+                console.log('No iframe source found. Trying alternate method...');
+                iframeSrc = $('li.vidcdn a').attr('data-video');
+            }
+    
+            if (iframeSrc) {
+                await setCache(episode, iframeSrc);
+            }
     
             return iframeSrc;
         } catch (error) {
