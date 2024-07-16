@@ -15,43 +15,94 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            background-color: #000; /* Optional: set a background color */
+            background-color: #000;
         }
         #player {
             width: 100vw;
             height: 100vh;
-            object-fit: cover; /* Ensure the video covers the entire area */
+            object-fit: cover;
         }
     </style>
 </head>
 <body>
-    <video id="player" controls>
-        <source src="<%= videoUrl %>" type="application/x-mpegURL" />
-    </video>
+    <video id="player" controls></video>
 
     <script src="https://cdn.plyr.io/3.6.8/plyr.polyfilled.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script>
-        // show the [Nekonode] Player is ready message in the console but make the [] bold and the text color green
         console.log('%c[NekoNode]', 'color: green; font-weight: bold', 'Player is ready!');
         document.addEventListener('DOMContentLoaded', () => {
-            const player = new Plyr('#player');
             const video = document.querySelector('#player');
 
-            if (Hls.isSupported()) {
-                const hls = new Hls();
-                hls.loadSource('<%= videoUrl %>');
-                hls.attachMedia(video);
-                hls.on(Hls.Events.MANIFEST_PARSED, function () {
-                    video.play();
-                });
-                window.hls = hls;
-            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                video.src = '<%= videoUrl %>';
-                video.addEventListener('canplay', function () {
-                    video.play();
-                });
+            const qualities = JSON.parse('<%- JSON.stringify(qualities) %>');
+
+            if (!Array.isArray(qualities)) {
+                console.error('Qualities is not an array:', qualities);
+                return;
             }
+
+            const sources = qualities.map(quality => ({
+                src: quality.url,
+                type: 'application/x-mpegURL',
+                size: quality.quality.replace('p', ''),
+                backup: quality.backup || null
+            }));
+
+            sources.forEach(source => {
+                if (source.backup) {
+                    const index = sources.findIndex(s => s.size === source.backup || source.size === source.default);
+                    if (index !== -1) {
+                        sources.splice(index, 1);
+                    }
+                }
+            });
+
+            const defaultQuality = sources.find(source => source.size === '1080') || sources[0];
+
+            const player = new Plyr(video, {
+                quality: {
+                    default: defaultQuality.size,
+                    options: sources.map(source => source.size),
+                    forced: true,
+                    onChange: (quality) => {
+                        const selectedSource = sources.find(source => source.size === quality);
+                        if (selectedSource) {
+                            loadSource(selectedSource);
+                        }
+                    }
+                }
+            });
+
+            function loadSource(source) {
+                if (Hls.isSupported()) {
+                    if (window.hls) {
+                        window.hls.destroy();
+                    }
+                    const hls = new Hls();
+                    hls.loadSource(source.src);
+                    hls.attachMedia(video);
+                    hls.on(Hls.Events.MANIFEST_PARSED, function () {
+                        video.play();
+                    });
+                    hls.on(Hls.Events.ERROR, function(event, data) {
+                        if (data.fatal && source.backup) {
+                            console.error(`Error loading source, switching to backup: ${source.backup}`);
+                            loadSource({ ...source, src: source.backup, backup: null });
+                        }
+                    });
+                    window.hls = hls;
+                } else {
+                    player.source = {
+                        type: 'video',
+                        sources: [source]
+                    };
+                    video.addEventListener('canplay', function () {
+                        video.play();
+                    });
+                }
+            }
+
+            loadSource(defaultQuality);
         });
     </script>
 </body>

@@ -37,7 +37,7 @@ const servers = {
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
-  message: 'Too many requests from this IP, please try again after 15 minutes'
+  message: 'Too many requests from this IP, please try again after 15 minutes',
 });
 
 app.use(limiter);
@@ -48,7 +48,7 @@ const logger = winston.createLogger({
   level: 'info',
   format: winston.format.combine(
     winston.format.timestamp(),
-    winston.format.json()
+    winston.format.json(),
   ),
   transports: [
     new winston.transports.File({ filename: './src/logs/errors/error.log', level: 'error' }),
@@ -68,10 +68,10 @@ async function fallbackHandler(anime) {
 }
 
 app.get('/', async (req, res) => {
-  const { anime_id, quality, server } = req.query;
+  const { anime_id, server } = req.query;
 
-  if (!anime_id || !quality || !server) {
-    logger.error('[GET /] Missing required parameters', { anime_id, quality, server });
+  if (!anime_id || !server) {
+    logger.error('[GET /] Missing required parameters', { anime_id, server });
     return res.status(400).render('error', { message: 'Missing required parameters' });
   }
 
@@ -82,43 +82,52 @@ app.get('/', async (req, res) => {
 
   try {
     const ep_id = anime_id;
-    const cacheKey = `${server}-${ep_id}-${quality}`;
-    const cachedVideoUrl = await getCache(cacheKey);
+    const cacheKey = `${server}-${ep_id}`;
+    const cachedData = await getCache(cacheKey);
 
-    if (cachedVideoUrl) {
-      logger.info('[GET /] Serving video URL from cache', { videoUrl: cachedVideoUrl });
-      return res.render('index', { videoUrl: cachedVideoUrl });
+    if (cachedData) {
+      const { videoUrl, qualities } = JSON.parse(cachedData);
+      logger.info('[GET /] Serving video from cache', { videoUrl });
+      return res.render('index', { videoUrl, qualities });
     }
 
     const sources = await servers[server].getEpisodeSources(ep_id);
-    const source = sources.find(src => src.quality === quality);
 
-    if (!source) {
-      const availableQualities = sources.map(src => src.quality);
-      logger.warn('[GET /] Requested quality not available', { quality, availableQualities });
-      return res.status(404).render('error', { message: 'Requested quality not available', availableQualities });
+    if (!sources || sources.length === 0) {
+      logger.warn('[GET /] No sources available');
+      return res.status(404).render('error', { message: 'No sources available' });
     }
 
-    const videoUrl = source.url;
-    logger.info('[GET /] Streaming video', { videoUrl, server, anime_id, quality });
+    const qualities = sources.map(source => ({ quality: source.quality, url: source.url }));
+    const index = qualities.findIndex(quality => quality.quality === 'backup' || quality.quality === 'default');
+    if (index > -1) {
+      qualities.splice(index, 1);
+    }
+    const videoUrl = qualities[0].url;
+    logger.info('[GET /] Streaming video', { videoUrl, server, anime_id });
 
-    await setCache(cacheKey, videoUrl);
-    res.render('index', { videoUrl });
+    const cacheData = JSON.stringify({ videoUrl, qualities });
+    await setCache(cacheKey, cacheData);
+    res.render('index', { videoUrl, qualities });
   } catch (error) {
     logger.error('[GET /] Error getting video URL from primary server', { error: error.message });
     try {
       const fallbackResponse = await fallbackHandler(anime_id);
-      const fallbackVideoUrl = fallbackResponse.sources.find(src => src.quality === quality)?.url;
+      const fallbackSources = fallbackResponse.sources;
 
-      if (fallbackVideoUrl) {
-        logger.info('[GET /] Serving fallback video URL', { fallbackVideoUrl });
-        await setCache(cacheKey, fallbackVideoUrl);
-        return res.render('index', { videoUrl: fallbackVideoUrl });
-      } else {
+      if (!fallbackSources || fallbackSources.length === 0) {
         await delCache(cacheKey);
-        logger.warn('[GET /] Requested quality not available in fallback sources', { quality });
-        return res.status(404).render('error', { message: 'Requested quality not available in fallback sources' });
+        logger.warn('[GET /] No fallback sources available');
+        return res.status(404).render('error', { message: 'No fallback sources available' });
       }
+
+      const qualities = fallbackSources.map(source => ({ quality: source.quality, url: source.url }));
+      const fallbackVideoUrl = qualities[0].url;
+
+      logger.info('[GET /] Serving fallback video URL', { fallbackVideoUrl });
+      const cacheData = JSON.stringify({ videoUrl: fallbackVideoUrl, qualities });
+      await setCache(cacheKey, cacheData);
+      return res.render('index', { videoUrl: fallbackVideoUrl, qualities });
     } catch (fallbackError) {
       logger.error('[GET /] Error getting video URL from fallback server', { fallbackError: fallbackError.message });
       res.status(500).render('error', { message: 'Failed to get video URL from both primary and fallback servers' });
