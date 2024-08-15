@@ -2,7 +2,6 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import axios from 'axios';
 import GogoCDN from './lib/gogocdn.js';
-import StreamWish from './lib/streamWish.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
@@ -60,11 +59,9 @@ const logger = winston.createLogger({
   ],
 });
 
-// Define available servers
+// Define available servers (only gogo is kept)
 const servers = {
   gogocdn: new GogoCDN(),
-  streamwish: new StreamWish(),
-  // Add other servers here
 };
 
 // Fallback handler for alternative server
