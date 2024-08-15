@@ -107,7 +107,7 @@ app.get('/', async (req, res) => {
 
     const qualities = sources.map(source => ({
       quality: source.quality,
-      url: `https://node-proxy.5yg3y1.easypanel.host/proxy/m3u8?url=${source.url}`
+      url: `https://node-proxy.5yg3y1.easypanel.host/fetch/m3u8?url=${source.url}`
     }));
 
     const backupIndex = qualities.findIndex(q => q.quality === 'backup' || q.quality === 'default');
@@ -135,7 +135,7 @@ app.get('/', async (req, res) => {
 
       const qualities = fallbackSources.map(source => ({
         quality: source.quality,
-        url: `https://node-proxy.5yg3y1.easypanel.host/proxy/m3u8?url=${source.url}`
+        url: `https://node-proxy.5yg3y1.easypanel.host/fetch/m3u8?url=${source.url}`
       }));
 
       const fallbackVideoUrl = qualities[0].url;
